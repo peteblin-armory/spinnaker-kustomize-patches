@@ -7,6 +7,7 @@ metadata:
     app.kubernetes.io/part-of: spinnaker
     cluster: spin-kubesvc
   name: spin-kubesvc
+  namespace: spin-agent
 spec:
   replicas: 1
   selector:
@@ -21,11 +22,22 @@ spec:
         app.kubernetes.io/part-of: spinnaker
         cluster: spin-kubesvc
     spec:
-      serviceAccountName: spin-sa
+      serviceAccount: spin-sa
       containers:
       - image: armory/kubesvc
         imagePullPolicy: IfNotPresent
         name: kubesvc
+        env:
+          - name: GRPC_ADDR 
+            valueFrom:
+              configMapKeyRef:
+                name: agent-vars
+                key: GRPC_ADDR
+          - name: CLUSTER_NAME 
+            valueFrom:
+              configMapKeyRef:
+                name: agent-vars
+                key: CLUSTER_NAME
         ports:
           - name: health
             containerPort: 8082
@@ -46,31 +58,8 @@ spec:
         volumeMounts:
         - mountPath: /opt/spinnaker/config
           name: volume-kubesvc-config
-        - mountPath: /kubeconfigfiles
-          name: spin-secrets
       restartPolicy: Always
       volumes:
       - name: volume-kubesvc-config
         configMap:
           name: kubesvc-config
-      - name: spin-secrets
-        secret:
-          defaultMode: 420
-          secretName: spin-secrets
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: kubesvc-metrics
-  labels:
-    app: spin
-    cluster: spin-kubesvc
-spec:
-  ports:
-  - name: metrics
-    port: 8008
-    targetPort: metrics
-    protocol: TCP
-  selector:
-    app: spin
-    cluster: spin-kubesvc
